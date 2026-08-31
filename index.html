@@ -7299,10 +7299,46 @@ function exportLoginLog(){
 }
 
 // ════════════════════════════════════════════
-// ✦ VALIDATE MODE
+// ✦ VALIDATE MODE  — Firestore-backed, live across all devices
 // ════════════════════════════════════════════
+// Stored in Firestore: validation_sessions/current  →  { ids: [...docIds], updatedAt, updatedBy }
+// A real-time onSnapshot listener keeps validatedIds in sync on every device instantly.
+
+const validateCol = collection(db, 'validation_sessions');
+const validateDocRef = doc(db, 'validation_sessions', 'current');
+
 let validateMode = false;
 let validatedIds = new Set();
+let _validateSaving = false; // debounce guard
+
+// ── Real-time listener — fires on every device when Firestore changes ──
+onSnapshot(validateDocRef, (snap) => {
+  if (snap.exists()) {
+    const data = snap.data();
+    validatedIds = new Set(data.ids || []);
+  } else {
+    validatedIds = new Set();
+  }
+  // Refresh UI on every device
+  render();
+  updateValidateBar();
+}, (err) => { console.warn('Validate listener error:', err); });
+
+async function _saveValidatedToFirestore() {
+  if (_validateSaving) return;
+  _validateSaving = true;
+  try {
+    await setDoc(validateDocRef, {
+      ids: [...validatedIds],
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser ? (currentUser.display || currentUser.username || 'unknown') : 'unknown'
+    });
+  } catch(e) {
+    showToast('Validate sync failed: ' + e.message, 'error');
+  } finally {
+    _validateSaving = false;
+  }
+}
 
 function toggleValidateMode() {
   validateMode = !validateMode;
@@ -7311,23 +7347,18 @@ function toggleValidateMode() {
   const colHeader = document.getElementById('validate-col-header');
   if (btn) btn.classList.toggle('active', validateMode);
   if (bar) bar.classList.toggle('active', validateMode);
-  // Show/hide validate column header
   if (colHeader) colHeader.style.display = validateMode ? '' : 'none';
-  // Show/hide all validate cells in current render
   document.querySelectorAll('[id^="validate-cell-"]').forEach(el => {
     el.style.display = validateMode ? '' : 'none';
   });
   updateValidateBar();
-  if (!validateMode) {
-    // Don't clear validatedIds on exit — keep for export even after toggling off
-  }
 }
 window.toggleValidateMode = toggleValidateMode;
 
-function toggleValidate(docId) {
+async function toggleValidate(docId) {
   if (validatedIds.has(docId)) validatedIds.delete(docId);
   else validatedIds.add(docId);
-  // Re-render only the validate cell for this member (no full re-render flicker)
+  // Optimistic UI update — re-render just this cell immediately
   const cell = document.getElementById('validate-cell-' + docId);
   if (cell) {
     const isVal = validatedIds.has(docId);
@@ -7337,6 +7368,8 @@ function toggleValidate(docId) {
     </button>`;
   }
   updateValidateBar();
+  // Persist to Firestore → triggers onSnapshot → updates all other open devices
+  await _saveValidatedToFirestore();
 }
 window.toggleValidate = toggleValidate;
 
@@ -7350,16 +7383,20 @@ function updateValidateBar() {
   if (label) label.textContent = count + ' / ' + total + ' validated (' + pct + '%)';
 }
 
-function clearValidated() {
+async function clearValidated() {
+  const ok = await confirmDialog('Clear all validated marks? This will reset validation for all devices.', { title: 'Clear Validation', danger: true, confirmText: 'Clear All' });
+  if (!ok) return;
   validatedIds.clear();
+  await _saveValidatedToFirestore();
   render();
   updateValidateBar();
+  showToast('All validations cleared', 'success');
 }
 window.clearValidated = clearValidated;
 
 function exportValidated() {
-  if (!validateMode && validatedIds.size === 0) {
-    showToast('No validated members to export. Enable Validate Mode first.', 'error'); return;
+  if (validatedIds.size === 0) {
+    showToast('No validated members yet. Validate some members first.', 'error'); return;
   }
   const all = live();
   const total = all.length;
