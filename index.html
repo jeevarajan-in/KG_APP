@@ -3200,6 +3200,10 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
   <div class="modal" style="max-width:440px;">
     <div class="modal-head">
       <span class="modal-head-title">Welcome New Comer</span>
+      <button onclick="exportNewComers()" title="Export New Comers list" style="display:flex;align-items:center;gap:5px;padding:.3rem .75rem;border-radius:7px;border:1px solid rgba(212,168,71,.4);background:rgba(212,168,71,.1);color:var(--gold);font-family:inherit;font-size:.72rem;font-weight:700;cursor:pointer;margin-right:6px;transition:all .15s;" onmouseover="this.style.background='rgba(212,168,71,.2)'" onmouseout="this.style.background='rgba(212,168,71,.1)'">
+        <svg width="11" height="11" fill="none" viewBox="0 0 16 16"><path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export
+      </button>
       <button class="modal-close" onclick="closeVisitor()"><svg width="12" height="12" fill="none" viewBox="0 0 12 12"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
     </div>
     <div style="padding:1.25rem 1.5rem;">
@@ -3212,6 +3216,10 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
       <div class="field-row">
         <div class="field"><label>Invited by</label><input id="v-invited" placeholder="who brought them"></div>
         <div class="field"><label>First visit</label><input id="v-date" type="date"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Location</label><select id="v-place" style="width:100%;padding:.5rem .75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-family:inherit;font-size:.85rem;"><option value="">— select —</option><option value="City Church">City Church</option><option value="Airport Church">Airport Church</option></select></div>
+        <div class="field"><label>City</label><input id="v-city" placeholder="e.g. Coimbatore"></div>
       </div>
       <div class="field-row">
         <div class="field"><label>Follow-up next step</label><input id="v-nextstep" value="Welcome call" list="nextstep-list"></div>
@@ -4877,7 +4885,6 @@ function doExportAttCSV(){
   const typeLabel  = t => t==='regular'?'Regular':t==='visitor'?'Visitor':'';
 
   const filteredMembers = members.filter(m=>(m.defaultVenue||'')===venueKey);
-  if(!filteredMembers.length){ showToast('No members tagged for '+(venueFilter==='city'?'City Church':'Airport Church'),'error'); return; }
 
   const recsInRange = attendanceRecords
     .filter(r=>r.date&&(!from||r.date>=from)&&(!to||r.date<=to))
@@ -4890,7 +4897,15 @@ function doExportAttCSV(){
     const presentSet = new Set(rec.presentIds||[]);
     const attDateLabel = rec.date ? fmtDate(rec.date) : 'Unknown';
     const event = rec.event||'Service';
-    filteredMembers.forEach(m=>{
+    // Include venue members + anyone marked present who isn't in the venue list
+    // (walk-ins, visitors, or members with wrong/blank defaultVenue)
+    const filteredIds = new Set(filteredMembers.map(m=>m._docId));
+    const extraPresent = [...presentSet]
+      .filter(id=>!filteredIds.has(id))
+      .map(id=>members.find(m=>m._docId===id))
+      .filter(Boolean);
+    const allRelevantMembers = [...filteredMembers, ...extraPresent];
+    allRelevantMembers.forEach(m=>{
       const status = presentSet.has(m._docId) ? 'Present' : 'Absent';
       rows.push([
         m.name||'',
@@ -4908,6 +4923,8 @@ function doExportAttCSV(){
     });
   });
 
+  const totalMembers = recsInRange.length
+    ? (() => { const s=new Set(); recsInRange.forEach(rec=>{ const fm=members.filter(m=>(m.defaultVenue||'')===venueKey); const fids=new Set(fm.map(m=>m._docId)); [...(rec.presentIds||[])].filter(id=>!fids.has(id)).map(id=>members.find(m=>m._docId===id)).filter(Boolean).forEach(m=>s.add(m._docId)); fm.forEach(m=>s.add(m._docId)); }); return s.size; })() : filteredMembers.length;
   const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const label = venueFilter==='city'?'City-Church':'Airport-Church';
   const dateSuffix = from===to ? (from||new Date().toISOString().slice(0,10)) : (from||'start')+'_to_'+(to||'end');
@@ -4916,7 +4933,7 @@ function doExportAttCSV(){
   a.download=`KG-${label}-${dateSuffix}.csv`;
   a.click();
   closeExportDateModal();
-  showToast('Exported '+filteredMembers.length+' members × '+recsInRange.length+' date(s)','success');
+  showToast('Exported '+totalMembers+' members × '+recsInRange.length+' date(s)','success');
 }
 
 function exportAttCSV(venueFilter){ openExportDateModal(venueFilter); }
@@ -5894,6 +5911,8 @@ function genMemberId(){
 }
 function openVisitor(){
   ['v-name','v-phone','v-email','v-invited'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('v-place').value='';
+  document.getElementById('v-city').value='';
   const today=new Date().toISOString().slice(0,10);
   document.getElementById('v-date').value=today;
   document.getElementById('v-nextstep').value='Welcome call';
@@ -5911,15 +5930,18 @@ async function saveVisitor(another){
   const visit=document.getElementById('v-date').value || new Date().toISOString().slice(0,10);
   const nextStep=document.getElementById('v-nextstep').value.trim()||'Welcome call';
   const due=document.getElementById('v-due').value||'';
+  const place=document.getElementById('v-place').value||'';
+  const visitorCity=document.getElementById('v-city').value.trim();
   const id=genMemberId();
   const now=new Date().toISOString();
   const data={ id, name,
     phone:document.getElementById('v-phone').value.trim(),
     email:document.getElementById('v-email').value.trim(),
+    invitedBy: invited, place, city: visitorCity,
     ministry:'', status:'Visitor', dob:'', age:null, household:'', address:'',
     skills:[], joined:visit, attendance:0,
     nextStep, nextStepDue:due, stageSince:now,
-    notes:[{ts:now, text:'First-time visitor'+(visit?' on '+fmtDate(visit):'')+(invited?' · invited by '+invited:'')}],
+    notes:[{ts:now, text:'First-time visitor'+(visit?' on '+fmtDate(visit):'')+(invited?' · invited by '+invited:'')+(place?' · at '+place:'')}],
     baptismDate:'', membershipDate:'', weddingAnniversary:'',
     updatedAt:now };
   try{
@@ -5929,6 +5951,109 @@ async function saveVisitor(another){
     if(another) openVisitor(); else closeVisitor();
   }catch(e){ showToast('Could not save: '+e.message,'error'); }
 }
+
+function exportNewComers(){
+  // All Visitor-status members, sorted by join date descending
+  const list = members
+    .filter(m => !m.archived && m.status === 'Visitor')
+    .sort((a,b) => (b.joined||'').localeCompare(a.joined||''));
+
+  if(!list.length){ showToast('No New Comers on record yet','error'); return; }
+
+  // Extract "invited by" from stored invitedBy field or fallback to notes
+  function getInvitedBy(m){
+    if(m.invitedBy) return m.invitedBy;
+    const note = (m.notes||[]).find(n=>(n.text||'').includes('invited by'));
+    if(!note) return '';
+    const match = note.text.match(/invited by (.+)$/);
+    return match ? match[1].trim() : '';
+  }
+
+  function getFollowUpStatus(m){
+    if(!m.nextStepDue) return m.nextStep || '';
+    const due = new Date(m.nextStepDue+'T00:00:00');
+    const now = new Date();
+    const diff = Math.ceil((due - now) / 86400000);
+    if(diff < 0) return (m.nextStep||'') + ' — OVERDUE by ' + Math.abs(diff) + ' day(s)';
+    if(diff === 0) return (m.nextStep||'') + ' — Due TODAY';
+    return (m.nextStep||'') + ' — Due in ' + diff + ' day(s)';
+  }
+
+  const rows = [[
+    'Member ID','Name','Phone','Email',
+    'First Visit','Location','Invited By',
+    'Follow-up Step','Follow-up By','Follow-up Status',
+    'Address','City'
+  ]];
+
+  list.forEach(m => rows.push([
+    m.id||'',
+    m.name||'',
+    m.phone||'',
+    m.email||'',
+    m.joined ? fmtDate(m.joined) : '',
+    m.place||'',
+    getInvitedBy(m),
+    m.nextStep||'',
+    m.nextStepDue ? fmtDate(m.nextStepDue) : '',
+    getFollowUpStatus(m),
+    m.address||'',
+    m.city||''
+  ]));
+
+  const csv = '\uFEFF' + rows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `KG-NewComers-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${list.length} New Comer${list.length!==1?'s':''}`, 'success');
+
+  // Also open printable PDF summary
+  const NCSS = `*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1f2b;background:#fff;}.page{padding:24px 28px;}.rep-head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #C8A24A;padding-bottom:14px;margin-bottom:18px;}.rep-title{font-size:21px;font-weight:800;color:#0D0F14;}.rep-sub{font-size:12px;color:#777;margin-top:2px;}.rep-gen{margin-left:auto;font-size:10.5px;color:#999;text-align:right;line-height:1.5;}.kpis{display:flex;gap:10px;margin-bottom:18px;}.kpi{flex:1;border:1px solid #e3e3e3;border-radius:10px;padding:11px 13px;}.kpi-val{font-size:20px;font-weight:800;color:#0D0F14;}.kpi-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:#999;margin-top:2px;}.sec{font-size:13px;font-weight:800;color:#0D0F14;margin:16px 0 8px;border-left:3px solid #C8A24A;padding-left:8px;}table{width:100%;border-collapse:collapse;font-size:11px;}th{text-align:left;background:#faf8f0;color:#555;padding:6px 8px;font-size:9px;text-transform:uppercase;letter-spacing:.04em;}td{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:top;}.ov{color:#d97706;font-weight:700;}.ok{color:#16a34a;}@media print{@page{size:A4;margin:13mm;}.page{padding:0;}}`;
+
+  const overdue = list.filter(m => m.nextStepDue && new Date(m.nextStepDue+'T00:00:00') < new Date());
+  const pending = list.filter(m => m.nextStepDue && new Date(m.nextStepDue+'T00:00:00') >= new Date());
+  const noStep  = list.filter(m => !m.nextStepDue);
+
+  const tableRows = list.map(m => {
+    const inv = getInvitedBy(m);
+    const isOv = m.nextStepDue && new Date(m.nextStepDue+'T00:00:00') < new Date();
+    return `<tr>
+      <td><b>${escapeHtml(m.name||'')}</b><br><span style="font-size:10px;color:#999;">${escapeHtml(m.id||'')}</span></td>
+      <td>${escapeHtml(m.phone||'—')}</td>
+      <td>${m.joined ? fmtDate(m.joined) : '—'}</td>
+      <td>${escapeHtml(inv||'—')}</td>
+      <td class="${isOv?'ov':'ok'}">${escapeHtml(m.nextStep||'—')}<br><span style="font-size:10px;">${m.nextStepDue?fmtDate(m.nextStepDue):''}</span></td>
+    </tr>`;
+  }).join('');
+
+  const body = `
+    <div class="rep-head">
+      <div><div class="rep-title">New Comers Report</div><div class="rep-sub">Kings Generation Church</div></div>
+      <div class="rep-gen">Generated<br>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-val">${list.length}</div><div class="kpi-lbl">Total New Comers</div></div>
+      <div class="kpi"><div class="kpi-val" style="color:#d97706">${overdue.length}</div><div class="kpi-lbl">Follow-up Overdue</div></div>
+      <div class="kpi"><div class="kpi-val" style="color:#2563eb">${pending.length}</div><div class="kpi-lbl">Follow-up Pending</div></div>
+      <div class="kpi"><div class="kpi-val" style="color:#16a34a">${noStep.length}</div><div class="kpi-lbl">No Step Set</div></div>
+    </div>
+    <div class="sec">All New Comers (${list.length})</div>
+    <table>
+      <thead><tr><th>Name</th><th>Phone</th><th>First Visit</th><th>Invited By</th><th>Follow-up</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>`;
+
+  let f = document.getElementById('print-frame');
+  if(!f){ f=document.createElement('iframe'); f.id='print-frame'; f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;'; document.body.appendChild(f); }
+  const d = f.contentWindow.document;
+  d.open(); d.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>New Comers Report</title><style>${NCSS}</style></head><body><div class="page">${body}</div></body></html>`); d.close();
+  setTimeout(()=>{ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){} }, 400);
+}
+window.exportNewComers = exportNewComers;
 
 // ---- bulk actions ----
 let selectMode=false;
@@ -7127,7 +7252,7 @@ Object.assign(window, {
   toggleMarkGroup, toggleHousehold,
   renderAssimilation, advanceStage, saveNextStep, toggleReachOutDone,
   addPrayer, deletePrayer, togglePrayerAnswered, setPrayerKind,
-  openVisitor, closeVisitor, saveVisitor,
+  openVisitor, closeVisitor, saveVisitor, exportNewComers,
   setTrendWeeks, setTrendEvent, setRecEventFilter,
   renderReports, generateMonthlyPDF, generateMemberCardsPDF,
   restoreMember, permanentDelete, loadAuditLog,
