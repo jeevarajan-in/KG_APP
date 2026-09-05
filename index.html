@@ -339,7 +339,7 @@ body {
 /* Summary cards */
 .summary-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   margin-bottom: 1.5rem;
 }
@@ -564,6 +564,15 @@ tbody td {
   padding: 0 !important;
   background: #12151E;
 }
+[data-theme="light"] .expanded-row td {
+  background: #F0F2F8;
+}
+[data-theme="light"] .expanded-content {
+  border-top-color: rgba(184,146,46,0.25);
+}
+[data-theme="light"] .exp-block-val { color: #1A1D28; }
+[data-theme="light"] .exp-block-sub { color: rgba(0,0,0,0.55); }
+[data-theme="light"] .exp-block-label { color: rgba(0,0,0,0.4); }
 
 .expanded-content {
   padding: 1.25rem 1.5rem 1.25rem 4.5rem;
@@ -1140,6 +1149,9 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
    ════════════════════════════════════════════ */
 .mobile-nav{display:none;}
 .mobile-topbar{display:none;}
+.mobile-member-search{display:none;}
+/* Newcomers chip amber hover */
+#chip-newcomers:hover{border-color:var(--amber);background:rgba(251,191,36,0.08);}
 @media (max-width: 768px){
   .mobile-topbar{
     display:flex;align-items:center;gap:10px;
@@ -1178,8 +1190,12 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
   .topbar{flex-wrap:wrap;row-gap:10px;}
   .search-wrap{max-width:none;order:3;flex-basis:100%;}
   .page-title{font-size:1.1rem;}
-  .summary-row{grid-template-columns:repeat(2,1fr);}
+  .summary-row{grid-template-columns:repeat(2,1fr);grid-template-rows:auto;}
   .att-hero{grid-template-columns:repeat(2,1fr);}
+  /* Mobile member search bar */
+  .mobile-member-search{display:block;padding:0 1rem .75rem;}
+  /* Hide desktop search in topbar on mobile — mobile-member-search takes over */
+  #members-page .topbar .search-wrap{display:none;}
   /* Filters: scroll horizontally on mobile */
   .filters{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;}
   .filters::-webkit-scrollbar{display:none;}
@@ -2049,11 +2065,21 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
   <div class="filters" id="filters">
     <button class="chip active" data-f="All" onclick="setFilter(this)">All Members<span class="chip-count" data-cf="All">0</span></button>
     <button class="chip" data-f="Active" onclick="setFilter(this)">Active<span class="chip-count" data-cf="Active">0</span></button>
-    <button class="chip" data-f="New" onclick="setFilter(this)">New<span class="chip-count" data-cf="New">0</span></button>
-    <button class="chip" data-f="Visitor" onclick="setFilter(this)">Visitors<span class="chip-count" data-cf="Visitor">0</span></button>
-    <button class="chip" data-f="Inactive" onclick="setFilter(this)">Inactive<span class="chip-count" data-cf="Inactive">0</span></button>
+        <button class="chip" data-f="Inactive" onclick="setFilter(this)">Inactive<span class="chip-count" data-cf="Inactive">0</span></button>
     <button class="chip" id="chip-archived" data-f="Archived" onclick="setFilter(this)" style="display:none;">Archived<span class="chip-count" data-cf="Archived">0</span></button>
     <div style="flex:1"></div>
+    <!-- Newcomers chip — navigates to the Newcomers/Assimilation section -->
+    <button class="chip" id="chip-newcomers" onclick="showPage('assimilation')" style="border-color:rgba(251,191,36,0.4);color:var(--amber);">
+      <svg width="11" height="11" fill="none" viewBox="0 0 16 16" style="margin-right:4px;vertical-align:-1px;"><path d="M7 9c1.7 0 3-1.3 3-3S8.7 3 7 3 4 4.3 4 6s1.3 3 3 3zM2 14c0-2.2 2.2-3.5 5-3.5M12 10v4M10 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Newcomers<span class="chip-count" id="chip-newcomers-count" style="background:rgba(251,191,36,0.15);color:var(--amber);">0</span>
+    </button>
+  </div>
+  <!-- MOBILE SEARCH BAR (shown only on mobile, below filters) -->
+  <div class="mobile-member-search" id="mobile-member-search">
+    <div style="position:relative;">
+      <svg width="14" height="14" fill="none" viewBox="0 0 20 20" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--slate-light);pointer-events:none;"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.8"/><path d="M14 14l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <input type="text" id="search-mobile" placeholder="Search name, ID, ministry…" oninput="onMobileSearch(this.value)" style="width:100%;padding:.55rem .9rem .55rem 2.2rem;border:1px solid var(--border-strong);border-radius:10px;font-family:inherit;font-size:.88rem;color:var(--text-primary);background:var(--surface2);outline:none;transition:border-color .15s;">
+    </div>
   </div>
 
   <div class="content">
@@ -2114,11 +2140,11 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
         Export
         <svg width="10" height="10" fill="none" viewBox="0 0 10 10" style="margin-left:2px;"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <div id="export-att-menu" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#10121A;border:1px solid rgba(255,255,255,0.10);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:200;min-width:180px;overflow:hidden;">
+      <div id="export-att-menu" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;box-shadow:var(--shadow-lg);z-index:200;min-width:180px;overflow:hidden;">
         <button onclick="openExportDateModal('city')" style="display:flex;align-items:center;gap:8px;width:100%;padding:.65rem 1rem;background:none;border:none;font-family:inherit;font-size:.83rem;font-weight:500;color:var(--text-primary);cursor:pointer;text-align:left;" onmouseover="this.style.background='var(--gold-pale)'" onmouseout="this.style.background='none'">
           <span style="font-size:.9rem;">🏙</span> City Church
         </button>
-        <div style="border-top:1px solid rgba(255,255,255,0.06);"></div>
+        <div style="border-top:1px solid var(--border);"></div>
         <button onclick="openExportDateModal('airport')" style="display:flex;align-items:center;gap:8px;width:100%;padding:.65rem 1rem;background:none;border:none;font-family:inherit;font-size:.83rem;font-weight:500;color:var(--text-primary);cursor:pointer;text-align:left;" onmouseover="this.style.background='var(--gold-pale)'" onmouseout="this.style.background='none'">
           <span style="font-size:.9rem;">✈</span> Airport Church
         </button>
@@ -2919,7 +2945,6 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
   <select id="bulk-status" class="bulk-select">
     <option value="Active">Active</option>
     <option value="New">New</option>
-    <option value="Visitor">Visitor</option>
     <option value="Inactive">Inactive</option>
   </select>
   <button class="bulk-btn" onclick="bulkSetStatus()">Set status</button>
@@ -3127,7 +3152,6 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
           <select id="f-status">
             <option value="Active">Active</option>
             <option value="New">New</option>
-            <option value="Visitor">Visitor</option>
             <option value="Inactive">Inactive</option>
           </select>
         </div>
@@ -3208,9 +3232,12 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
     </div>
     <div style="padding:1.25rem 1.5rem;">
       <div style="font-size:.8rem;color:var(--text-secondary);margin-bottom:1rem;">Quick capture at the door. Saves as a <b style="color:var(--text-primary)">New Comer</b> with a follow-up next step so they don't fall through.</div>
-      <div class="field"><label>Name *</label><input id="v-name" placeholder="Full name" onkeydown="if(event.key==='Enter')document.getElementById('v-phone').focus()"></div>
+      <div class="field-row" style="align-items:flex-start;">
+        <div class="field" style="flex:2;"><label>Name *</label><input id="v-name" placeholder="Full name" onkeydown="if(event.key==='Enter')document.getElementById('v-phone').focus()" oninput="clearVFieldErr('v-name-err','v-name')"><div id="v-name-err" style="display:none;font-size:.72rem;color:#ef4444;margin-top:4px;font-weight:600;"></div></div>
+        <div class="field" style="flex:1;"><label style="white-space:nowrap;">Member count</label><input id="v-count" type="number" min="1" max="99" placeholder="1" inputmode="numeric" style="text-align:center;"><div style="font-size:.68rem;color:var(--text-secondary);margin-top:3px;">Defaults to 1</div></div>
+      </div>
       <div class="field-row">
-        <div class="field"><label>Phone</label><input id="v-phone" placeholder="+91…"></div>
+        <div class="field"><label>Phone *</label><input id="v-phone" placeholder="10-digit number" type="tel" maxlength="10" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10);clearVPhoneErr()"><div id="v-phone-err" style="display:none;font-size:.72rem;color:#ef4444;margin-top:4px;font-weight:600;"></div></div>
         <div class="field"><label>Email</label><input id="v-email" type="email" placeholder="optional"></div>
       </div>
       <div class="field-row">
@@ -3218,7 +3245,7 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
         <div class="field"><label>First visit</label><input id="v-date" type="date"></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Location</label><select id="v-place" style="width:100%;padding:.5rem .75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-family:inherit;font-size:.85rem;"><option value="">— select —</option><option value="City Church">City Church</option><option value="Airport Church">Airport Church</option></select></div>
+        <div class="field"><label>Location *</label><select id="v-place" style="width:100%;padding:.5rem .75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-family:inherit;font-size:.85rem;" onchange="clearVFieldErr('v-place-err','v-place')"><option value="">— select —</option><option value="City Church">City Church</option><option value="Airport Church">Airport Church</option></select><div id="v-place-err" style="display:none;font-size:.72rem;color:#ef4444;margin-top:4px;font-weight:600;"></div></div>
         <div class="field"><label>City</label><input id="v-city" placeholder="e.g. Coimbatore"></div>
       </div>
       <div class="field-row">
@@ -3230,6 +3257,32 @@ thead th.sortable.sorted .sort-ind{opacity:1;color:var(--gold);}
       <button class="btn-cancel" onclick="closeVisitor()">Cancel</button>
       <button class="btn-cancel" onclick="saveVisitor(true)">Save &amp; add another</button>
       <button class="btn-save" onclick="saveVisitor(false)">Save New Comer</button>
+    </div>
+  </div>
+</div>
+
+<!-- NC EXPORT FILTER DIALOG -->
+<div class="overlay" id="nc-export-overlay" onclick="if(event.target===this)closeNcExportDialog()">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-head">
+      <span class="modal-head-title">Export New Comers</span>
+      <button class="modal-close" onclick="closeNcExportDialog()"><svg width="12" height="12" fill="none" viewBox="0 0 12 12"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    </div>
+    <div style="padding:1.25rem 1.5rem;">
+      <div style="font-size:.8rem;color:var(--text-secondary);margin-bottom:1rem;">Filter by first-visit date range, then export CSV + print report.</div>
+      <div class="field-row">
+        <div class="field"><label>From</label><input id="nce-from" type="date" oninput="_ncExportUpdateCount()"></div>
+        <div class="field"><label>To</label><input id="nce-to" type="date" oninput="_ncExportUpdateCount()"></div>
+      </div>
+      <div style="margin-top:.25rem;font-size:.8rem;color:var(--gold);font-weight:600;" id="nce-count"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeNcExportDialog()">Cancel</button>
+      <button class="btn-cancel" onclick="document.getElementById('nce-from').value='';document.getElementById('nce-to').value=localDateStr();_ncExportUpdateCount()">Clear filter</button>
+      <button class="btn-save" onclick="runNcExport()">
+        <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="margin-right:4px;"><path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export
+      </button>
     </div>
   </div>
 </div>
@@ -3398,6 +3451,18 @@ async function restoreMember(docId){
     showToast(`${m?m.name:'Member'} restored`, 'success');
   }catch(e){ showToast('Restore failed: '+e.message,'error'); }
 }
+async function deleteNewComer(docId){
+  if(!isSuperAdmin()){ showToast('Super Admin access required','error'); return; }
+  const m = members.find(x=>x._docId===docId);
+  if(!m || m.status!=='New'){ showToast('Only New Comers can be deleted this way','error'); return; }
+  const ok = await confirmDialog(`Permanently delete newcomer "${m.name}"? This cannot be undone.`, {title:'Delete New Comer', danger:true, confirmText:'Delete permanently'});
+  if(!ok) return;
+  try{
+    await deleteDoc(doc(membersCol, docId));
+    logAudit('Permanently deleted newcomer', `${m.name} (${m.id})`);
+    showToast(`${m.name} permanently deleted`,'success');
+  }catch(e){ showToast('Delete failed: '+e.message,'error'); }
+}
 async function permanentDelete(docId){
   if(!canEditMembers()) return;
   const m = members.find(x=>x._docId===docId);
@@ -3415,8 +3480,7 @@ function initials(n){ return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpp
 function avClass(n){ return AV_CLASSES[n.charCodeAt(0) % AV_CLASSES.length]; }
 function ringColor(status){
   return status==='Active' ? 'var(--green)'
-       : status==='New'    ? 'var(--blue)'
-       : status==='Visitor'? 'var(--amber)'
+       : status==='New'    ? 'var(--amber)'
        : 'transparent';
 }
 function avatarHtml(m, size){
@@ -3459,8 +3523,9 @@ function removePhoto(){
   document.getElementById('photo-remove-btn').style.display = 'none';
   document.getElementById('f-photo-input').value = '';
 }
-function badgeClass(s){ return s==='Active'?'badge-active':s==='New'?'badge-new':s==='Visitor'?'badge-visitor':'badge-inactive'; }
+function badgeClass(s){ return s==='Active'?'badge-active':s==='New'?'badge-visitor':'badge-inactive'; }
 function barClass(p){ return p>=80?'hi':p>=55?'mid':'lo'; }
+function localDateStr(d=new Date()){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function fmtDate(d){ if(!d) return '—'; const [y,m,day]=d.split('-'); const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${mo[+m-1]} ${+day}, ${y}`; }
 
 function setSaveLoading(on) {
@@ -3490,7 +3555,10 @@ let sortState = { key:'name', dir:1 };
 function live(){ return members.filter(m=>!m.archived); }
 function filtered(){
   const q = document.getElementById('search').value.toLowerCase();
-  const base = filter==='Archived' ? members.filter(m=>m.archived) : members.filter(m=>!m.archived && (filter==='All' || m.status===filter));
+  // Newcomers (Visitors) are shown separately — exclude from All Members view
+  const base = filter==='Archived' ? members.filter(m=>m.archived)
+             : filter==='All' ? members.filter(m=>!m.archived && m.status!=='New')
+             : members.filter(m=>!m.archived && m.status===filter);
   const filtered1 = ministryFilter ? base.filter(m=>(m.ministry||'')===ministryFilter) : base;
   const list = filtered1.filter(m => {
     if(!q) return true;
@@ -3524,12 +3592,20 @@ function updateSortIndicators(){
 }
 function updateChipCounts(){
   const liveM=live();
-  const counts={All:liveM.length,Active:0,New:0,Visitor:0,Inactive:0,Archived:members.length-liveM.length};
-  liveM.forEach(m=>{ if(counts[m.status]!=null) counts[m.status]++; });
+  // Newcomers (New) are separated — All Members excludes them
+  const counts={All:0,Active:0,Inactive:0,Archived:members.length-liveM.length};
+  liveM.forEach(m=>{
+    if(m.status==='New') return; // newcomers go to their own chip
+    if(counts[m.status]!=null) counts[m.status]++;
+    counts.All++;
+  });
   document.querySelectorAll('.chip-count[data-cf]').forEach(el=>{
     el.textContent = counts[el.dataset.cf] ?? 0;
   });
   const ac=document.getElementById('chip-archived'); if(ac) ac.style.display = counts.Archived>0 ? '' : 'none';
+  // Newcomers chip count
+  const nc=document.getElementById('chip-newcomers-count');
+  if(nc) nc.textContent = liveM.filter(m=>m.status==='New').length;
 }
 function updateSearchClear(){
   const v = document.getElementById('search').value;
@@ -3537,8 +3613,18 @@ function updateSearchClear(){
 }
 function clearSearch(){
   const s=document.getElementById('search');
-  s.value=''; s.focus(); render();
+  s.value='';
+  const sm=document.getElementById('search-mobile');
+  if(sm) sm.value='';
+  s.focus(); render();
 }
+// Sync mobile search → main hidden search input → render
+function onMobileSearch(val){
+  const s=document.getElementById('search');
+  s.value=val;
+  render();
+}
+window.onMobileSearch=onMobileSearch;
 
 function setFilter(btn){
   filter = btn.dataset.f;
@@ -3573,7 +3659,7 @@ function setView(v){
 
 function render(){
   const list = filtered();
-  let label = filter==='All'?'All Members':`${filter} Members`;
+  let label = filter==='All'?'All Members':filter==='Archived'?'Archived Members':`${filter} Members`;
   if(ministryFilter) label += ` · ${ministryFilter}`;
   document.getElementById('result-label').textContent = `${label} (${list.length})`;
   renderSummary();
@@ -3636,7 +3722,7 @@ function followUpInfo(m){
 
 function atRiskList(){
   return live()
-    .filter(m=>m.status!=='Inactive'&&m.status!=='Visitor')
+    .filter(m=>m.status!=='Inactive'&&m.status!=='New')
     .map(m=>({m, info:followUpInfo(m)}))
     .filter(x=>x.info.tracked>=2 && (x.info.consec>=3 || (x.info.consec>=2 && (x.info.daysSince==null||x.info.daysSince>=21))))
     .sort((a,b)=>b.info.consec-a.info.consec || ((b.info.daysSince||0)-(a.info.daysSince||0)));
@@ -3689,10 +3775,18 @@ function renderFollowUp(){
 }
 
 function renderSummary(){
-  const all = live();
-  if (!all.length) {
+  const allWithNewcomers = live();
+  // Newcomers (New) are tracked separately — exclude from member stats
+  const all = allWithNewcomers.filter(m=>m.status!=='New');
+  const newcomers = allWithNewcomers.filter(m=>m.status==='New').length;
+  if (!all.length && !newcomers) {
     document.getElementById('summary').innerHTML = '';
     document.getElementById('sidebar-count').textContent = 0;
+    return;
+  }
+  if (!all.length) {
+    document.getElementById('summary').innerHTML = '';
+    document.getElementById('sidebar-count').textContent = newcomers;
     return;
   }
   const active = all.filter(m=>m.status==='Active').length;
@@ -3713,15 +3807,15 @@ function renderSummary(){
       <div class="stat-card-val">${active}</div>
       <div class="stat-card-sub">${Math.round(active/all.length*100)}% of congregation</div>
     </div>
+    <div class="stat-card" style="cursor:pointer;border-color:rgba(251,191,36,0.3);" onclick="showPage('assimilation')" title="View Newcomers">
+      <div class="stat-card-label" style="color:var(--amber);">Newcomers</div>
+      <div class="stat-card-val" style="color:var(--amber);">${newcomers}</div>
+      <div class="stat-card-sub">Tracked separately ↗</div>
+    </div>
     <div class="stat-card">
       <div class="stat-card-label">New This Month</div>
       <div class="stat-card-val">${newThisMonth}</div>
       <div class="stat-card-sub">${now.toLocaleString('en-US',{month:'long',year:'numeric'})}</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-label">New This Year</div>
-      <div class="stat-card-val">${newThisYear}</div>
-      <div class="stat-card-sub">${thisYear}</div>
     </div>
     <div class="stat-card">
       <div class="stat-card-label">Avg Attendance</div>
@@ -3769,7 +3863,9 @@ function renderTable(list){
           ? `<button class="action-btn admin-only" style="color:var(--green)" onclick="event.stopPropagation();restoreMember('${m._docId}')">Restore</button>
              <button class="action-btn admin-only" style="color:var(--red)" onclick="event.stopPropagation();permanentDelete('${m._docId}')">Delete forever</button>`
           : `<button class="action-btn admin-only" onclick="event.stopPropagation();openEditModal('${m._docId}')">Edit</button>
-             <button class="action-btn admin-only" style="color:var(--red)" onclick="event.stopPropagation();deleteMember('${m._docId}')">Archive</button>`}
+             <button class="action-btn admin-only" style="color:var(--red)" onclick="event.stopPropagation();deleteMember('${m._docId}')">Archive</button>
+             ${m.status==='New'&&isSuperAdmin()?`<button class="action-btn" style="color:var(--red);font-weight:700;border-color:var(--red);background:rgba(239,68,68,0.06);" onclick="event.stopPropagation();deleteNewComer('${m._docId}')">Delete</button>`:''}
+             `}
       </td>
     </tr>
     <tr class="expanded-row" id="exp-${m._docId}" style="display:${isOpen?'':'none'}">
@@ -3955,6 +4051,53 @@ async function deleteAllMembers(){
 }
 
 window.deleteMember = deleteMember;
+window.deleteNewComer = deleteNewComer;
+function editNewcomer(docId){ const m=members.find(x=>x._docId===docId); if(m) openModal(m); }
+window.editNewcomer = editNewcomer;
+
+// ── Promote All Newcomers → Active ──
+async function promoteAllNewcomers(){
+  const visitors = live().filter(m => m.status === 'New');
+  if(!visitors.length){
+    showToast('No newcomers to promote', 'error');
+    return;
+  }
+  const ok = await confirmDialog(
+    `Promote all ${visitors.length} newcomer${visitors.length!==1?'s':''} to Active status? This will move them out of the Assimilation pipeline and into the main Members list.`,
+    { title: `Promote ${visitors.length} Newcomer${visitors.length!==1?'s':''} → Active`, confirmText: 'Promote All', danger: false }
+  );
+  if(!ok) return;
+
+  const btn = document.getElementById('promote-all-btn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Promoting…'; }
+
+  let done = 0, failed = 0;
+  for(const m of visitors){
+    try{
+      await setDoc(doc(membersCol, m._docId), {
+        status: 'Active',
+        promoted: true,
+        promotedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      done++;
+    } catch(e){
+      console.warn('Promote failed for', m.name, e);
+      failed++;
+    }
+  }
+
+  logAudit('Bulk promoted newcomers → Active', `${done} promoted${failed?', '+failed+' failed':''}`);
+  showToast(
+    failed ? `${done} promoted, ${failed} failed` : `${done} newcomer${done!==1?'s':''} promoted to Active ✓`,
+    failed ? 'error' : 'success'
+  );
+
+  if(btn){ btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M8 3l4 4-4 4M3 7h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg> Promote All → Active'; }
+  render();
+  renderAssimilation();
+}
+window.promoteAllNewcomers = promoteAllNewcomers;
 window.deleteAllMembers = deleteAllMembers;
 window.openModal = openModal;
 window.openEditModal = openEditModal;
@@ -4261,7 +4404,7 @@ const markAttVenue = new Map();
 // per-member type map: docId -> 'regular' | 'visitor' | ''
 const markAttType = new Map();
 
-function _doOpenMarkAttendance(recordId){
+async function _doOpenMarkAttendance(recordId){
   markAttPresent.clear();
   markAttVenue.clear();
   markAttType.clear();
@@ -4272,31 +4415,37 @@ function _doOpenMarkAttendance(recordId){
   });
   // If fresh open (no recordId), auto-detect if a record already exists for today+venue+event
   if(!recordId && selectedVenue){
-    const todayDate = new Date().toISOString().split('T')[0];
+    const todayDate = localDateStr();
     const defaultEvent = 'Sunday Service';
     const venueSlug = (selectedVenue||'main').replace(/\s+/g,'-').toLowerCase();
-    const autoDocId = todayDate+'_'+defaultEvent.replace(/\s+/g,'-')+'_'+venueSlug;
-    const existingRec = attendanceRecords.find(r=>r._docId===autoDocId);
-    if(existingRec) recordId = autoDocId;
+    recordId = todayDate+'_'+defaultEvent.replace(/\s+/g,'-')+'_'+venueSlug;
   }
   editingRecordId = recordId || null;
   const titleEl = document.querySelector('#mark-att-overlay .modal-head-title');
   if(editingRecordId){
-    const rec = attendanceRecords.find(r=>r._docId===editingRecordId);
+    // Always fetch fresh from Firestore so memberVenues changes are not lost
+    let rec = null;
+    try{
+      const snap = await getDoc(doc(attendanceCol, editingRecordId));
+      if(snap.exists()){ rec = {_docId: snap.id, ...snap.data()}; }
+    }catch(e){ rec = attendanceRecords.find(r=>r._docId===editingRecordId)||null; }
     if(rec){
       (rec.presentIds||[]).forEach(id=>markAttPresent.add(id));
       document.getElementById('mark-att-date').value = rec.date;
       document.getElementById('mark-att-event').value = rec.event||'Sunday Service';
-      // restore venue if present
       if(rec.venue){ selectedVenue=rec.venue; }
-      // restore per-member venues
+      // memberVenues from record overrides defaultVenue — applied AFTER defaults
       if(rec.memberVenues){ Object.entries(rec.memberVenues).forEach(([k,v])=>markAttVenue.set(k,v)); }
-      // restore per-member types
       if(rec.memberTypes){ Object.entries(rec.memberTypes).forEach(([k,v])=>markAttType.set(k,v)); }
+    } else {
+      // No record saved yet — fresh session
+      editingRecordId = null;
+      document.getElementById('mark-att-date').value=localDateStr();
+      document.getElementById('mark-att-event').value='Sunday Service';
     }
-    if(titleEl) titleEl.textContent='Edit Attendance';
+    if(titleEl) titleEl.textContent = rec ? 'Edit Attendance' : 'Mark Attendance';
   } else {
-    document.getElementById('mark-att-date').value=new Date().toISOString().split('T')[0];
+    document.getElementById('mark-att-date').value=localDateStr();
     document.getElementById('mark-att-event').value='Sunday Service';
     if(titleEl) titleEl.textContent='Mark Attendance';
   }
@@ -4394,7 +4543,7 @@ async function submitQuickAdd(){
 
   const newMember={
     name, id:newId, phone, household:family, city,
-    status:'Visitor', ministry:'', address:'', email:'',
+    status:'New', ministry:'', address:'', email:'',
     addedViaQuickAdd:true,
     createdAt:new Date().toISOString(),
     updatedAt:new Date().toISOString()
@@ -4484,13 +4633,6 @@ function markMemberRow(m){
         <option value="airport" ${airSel} style="background:#1C2030;color:var(--purple);">✈ Airport</option>
       </select>
       </div>
-      <div onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" style="margin-right:6px;">
-      <select ${venueDisabled} onchange="setMemberType('${m._docId}',this.value)" style="border:1px solid var(--border-strong);border-radius:6px;padding:4px 8px;font-size:.72rem;font-weight:600;font-family:inherit;cursor:${checked?'pointer':'not-allowed'};outline:none;background:${typeBg};color:${typeColor};min-width:90px;opacity:${venueOpacity};transition:opacity .2s;">
-        <option value="" ${!mt?'selected':''} style="background:#1C2030;color:var(--text-secondary);">🏷 Type</option>
-        <option value="regular" ${regSel} style="background:#1C2030;color:var(--green);">✅ Regular</option>
-        <option value="visitor" ${visSel} style="background:#1C2030;color:var(--amber);">👤 Visitor</option>
-      </select>
-      </div>
       <span class="badge ${checked?'badge-active':'badge-inactive'}" style="font-size:.68rem;">${checked?'Present':'Absent'}</span>
     </div>`;
 }
@@ -4508,15 +4650,43 @@ function setMemberType(docId, val){
 
 function setMemberVenue(docId, val){
   if(val) markAttVenue.set(docId, val); else markAttVenue.delete(docId);
-  // persist as default venue on the member document
   try{
-    setDoc(doc(membersCol, docId), {defaultVenue: val||'', updatedAt: new Date().toISOString()}, {merge:true});
-    // also update local members array so re-renders pick it up
-    const m = members.find(x=>x._docId===docId);
-    if(m) m.defaultVenue = val||'';
+    const date  = document.getElementById('mark-att-date').value;
+    const event = document.getElementById('mark-att-event').value;
+    if(date && event && selectedVenue){
+      const venueSlug = (selectedVenue||'main').replace(/\s+/g,'-').toLowerCase();
+      const recId = editingRecordId || (date+'_'+event.replace(/\s+/g,'-')+'_'+venueSlug);
+      setDoc(doc(attendanceCol, recId), {memberVenues: Object.fromEntries(markAttVenue), updatedAt: new Date().toISOString()}, {merge:true});
+    }
   }catch(e){ console.warn('venue save failed',e); }
   renderMarkAttList();
 }
+
+async function tagAllCityChurch(){
+  const list = markFilteredList();
+  if(!list.length){ showToast('No members to tag','error'); return; }
+  const already = list.filter(m=>(m.defaultVenue||'')==='city').length;
+  const toTag = list.filter(m=>(m.defaultVenue||'')!=='city');
+  if(!toTag.length){ showToast('All members already tagged as City Church','success'); return; }
+  const ok = await confirmDialog(
+    `Tag all ${toTag.length} member${toTag.length!==1?'s':''} as City Church?\n(${already} already tagged, ${toTag.length} will be updated)`,
+    {title:'Tag All → City Church', confirmText:'Tag All', danger:false}
+  );
+  if(!ok) return;
+  let done=0, failed=0;
+  for(const m of toTag){
+    try{
+      await setDoc(doc(membersCol, m._docId), {defaultVenue:'city', updatedAt:new Date().toISOString()}, {merge:true});
+      m.defaultVenue = 'city';
+      markAttVenue.set(m._docId, 'city');
+      done++;
+    }catch(e){ failed++; }
+  }
+  renderMarkAttList();
+  showToast(failed ? `${done} tagged, ${failed} failed` : `${done} member${done!==1?'s':''} tagged as City Church ✓`, failed?'error':'success');
+  logAudit('Bulk tagged → City Church', `${done} members updated`);
+}
+window.tagAllCityChurch = tagAllCityChurch;
 
 function renderMarkAttList(){
   const list=markFilteredList();
@@ -4876,13 +5046,19 @@ function _updateExportInfo(){
     : 'No records in this range.';
 }
 
-function doExportAttCSV(){
+async function doExportAttCSV(){
   const from = document.getElementById('export-date-from').value;
   const to   = document.getElementById('export-date-to').value;
   const venueFilter = _exportVenue;
   const venueKey = venueFilter==='city'?'city':'airport';
   const venueLabel = v => v==='city'?'City Church':v==='airport'?'Airport Church':'';
   const typeLabel  = t => t==='regular'?'Regular':t==='visitor'?'Visitor':'';
+
+  // Fetch fresh records from Firestore so memberVenues is always up to date
+  try{
+    const snap = await getDocs(query(attendanceCol, orderBy('date','desc')));
+    attendanceRecords = snap.docs.map(d=>({_docId:d.id,...d.data()}));
+  }catch(e){ console.warn('Could not refresh attendance records for export',e); }
 
   const filteredMembers = members.filter(m=>(m.defaultVenue||'')===venueKey);
 
@@ -4892,13 +5068,11 @@ function doExportAttCSV(){
 
   if(!recsInRange.length){ showToast('No attendance records in selected date range','error'); return; }
 
-  const rows=[['Name','Phone','Age','Family Tag','Relation','Place','Venue','Type','Status','Attendance Date','Event']];
+  const rows=[['Name','Phone','Age','Family Tag','Relation','Place','Attended Venue','Tagged Venue','Attendance Date','Event']];
   recsInRange.forEach(rec=>{
     const presentSet = new Set(rec.presentIds||[]);
     const attDateLabel = rec.date ? fmtDate(rec.date) : 'Unknown';
     const event = rec.event||'Service';
-    // Include venue members + anyone marked present who isn't in the venue list
-    // (walk-ins, visitors, or members with wrong/blank defaultVenue)
     const filteredIds = new Set(filteredMembers.map(m=>m._docId));
     const extraPresent = [...presentSet]
       .filter(id=>!filteredIds.has(id))
@@ -4906,7 +5080,10 @@ function doExportAttCSV(){
       .filter(Boolean);
     const allRelevantMembers = [...filteredMembers, ...extraPresent];
     allRelevantMembers.forEach(m=>{
-      const status = presentSet.has(m._docId) ? 'Present' : 'Absent';
+      if(!presentSet.has(m._docId)) return; // only present
+      const attendedVenue = venueLabel(venueFilter);                              // which export was triggered
+      const sessionVenue  = rec.memberVenues ? (rec.memberVenues[m._docId]||'') : '';
+      const taggedVenue   = venueLabel(sessionVenue || m.defaultVenue || '');    // per-session override, else permanent tag
       rows.push([
         m.name||'',
         m.phone||'',
@@ -4914,9 +5091,8 @@ function doExportAttCSV(){
         m.household||'',
         m.relationship||'',
         m.city||m.address||'',
-        venueLabel(m.defaultVenue||''),
-        typeLabel(m.defaultAttType||''),
-        status,
+        attendedVenue,
+        taggedVenue,
         attDateLabel,
         event
       ]);
@@ -5485,7 +5661,7 @@ function renderOverview(){
   // ── Pipeline snapshot ──
   const pipeEl=document.getElementById('ov-pipeline');
   if(pipeEl){
-    const order=[['Visitor','#FBD324'],['New','var(--blue)'],['Active','var(--green)']];
+    const order=[['New','#FBD324'],['Active','var(--green)']];
     const counts=order.map(([s])=>live().filter(m=>m.status===s).length);
     const max=Math.max(1,...counts);
     pipeEl.innerHTML=`<div class="pipe-snap">${order.map(([s,c],i)=>`
@@ -5502,16 +5678,16 @@ function renderOverview(){
     </div>`;}).join(''):'<div class="dash-empty">No services logged yet.</div>';
 }
 // ---- assimilation pipeline ----
-const STAGE_THRESHOLD={Visitor:14, New:30}; // days before a stage is "stale"
+const STAGE_THRESHOLD={New:30}; // days before a stage is "stale"
 function daysInStage(m){
   const since=m.stageSince||m.joined||m.updatedAt;
   if(!since) return null;
   const d=new Date(since); if(isNaN(d)) return null;
   return Math.floor((Date.now()-d.getTime())/86400000);
 }
-function nextStage(s){ return s==='Visitor'?'New':s==='New'?'Active':null; }
+function nextStage(s){ return s==='New'?'Active':null; }
 function isStale(m){
-  if(m.status!=='Visitor' && m.status!=='New') return false;
+  if(m.status!=='New') return false;
   if(!m.nextStep) return true;
   if(m.nextStepDue && new Date(m.nextStepDue+'T23:59:59') < new Date()) return true;
   const d=daysInStage(m);
@@ -5519,7 +5695,7 @@ function isStale(m){
 }
 function renderAssimilation(){
   const host=document.getElementById('assim-board'); if(!host) return;
-  const cols=[['Visitor','#FBD324'],['New','var(--blue)'],['Active','var(--green)']];
+  const cols=[['New','#FBD324'],['Active','var(--green)']];
   host.innerHTML=cols.map(([stage,color])=>{
     const list=live().filter(m=>m.status===stage).sort((a,b)=>(isStale(b)-isStale(a))||((daysInStage(b)||0)-(daysInStage(a)||0)));
     return `<div class="assim-col">
@@ -5548,7 +5724,12 @@ function renderAssimilation(){
           ${m.nextStepDue?`<div class="assim-due ${dueOver?'overdue':''}">Due ${fmtDate(m.nextStepDue)}${dueOver?' · overdue':''}</div>`:''}
           ${ns?`<div class="assim-actions">
             <button class="assim-advance" onclick="advanceStage('${m._docId}')">Move to ${ns} →</button>
-          </div>`:``}
+            <button class="assim-advance" style="background:rgba(96,165,250,0.12);border-color:rgba(96,165,250,0.4);color:var(--blue);" onclick="editNewcomer('${m._docId}')">✏️ Edit</button>
+            ${isSuperAdmin()?`<button class="assim-advance" style="background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.4);color:var(--red);" onclick="deleteNewComer('${m._docId}')">🗑 Delete</button>`:''}
+          </div>`:`<div class="assim-actions">
+            <button class="assim-advance" style="background:rgba(96,165,250,0.12);border-color:rgba(96,165,250,0.4);color:var(--blue);" onclick="editNewcomer('${m._docId}')">✏️ Edit</button>
+            ${isSuperAdmin()?`<button class="assim-advance" style="background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.4);color:var(--red);" onclick="deleteNewComer('${m._docId}')">🗑 Delete</button>`:''}
+          </div>`}
         </div>`;
       }).join(''):'<div class="assim-empty">No one here right now.</div>'}
     </div>`;
@@ -5846,14 +6027,14 @@ function printHTML(title, body){
   setTimeout(()=>{ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ showToast('Could not open the print dialog','error'); } }, 400);
 }
 function repHead(title, sub){ return `<div class="rep-head">${REP_LOGO}<div><div class="rep-title">${title}</div><div class="rep-sub">${sub||'Kings Generation Member Portal'}</div></div><div class="rep-gen">Generated<br>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</div></div>`; }
-function repBadge(s){ const c={Active:'#16a34a',New:'#2563eb',Visitor:'#d97706',Inactive:'#777'}[s]||'#777'; const bg={Active:'#dcfce7',New:'#dbeafe',Visitor:'#fef3c7',Inactive:'#eee'}[s]||'#eee'; return `<span class="badge" style="background:${bg};color:${c}">${s||'—'}</span>`; }
+function repBadge(s){ const c={Active:'#16a34a',New:'#d97706',Inactive:'#777'}[s]||'#777'; const bg={Active:'#dcfce7',New:'#fef3c7',Inactive:'#eee'}[s]||'#eee'; return `<span class="badge" style="background:${bg};color:${c}">${s||'—'}</span>`; }
 function repAvatar(m){ return m.photo?`<img class="mcard-av" src="${m.photo}">`:`<div class="mcard-av">${initials(m.name)}</div>`; }
 
 function generateMonthlyPDF(){
   const key=(document.getElementById('report-month').value)||new Date().toISOString().slice(0,7);
   const recs=recordsInMonth(key).sort((a,b)=>a.date.localeCompare(b.date));
   const newM=live().filter(m=>monthKey(m.joined)===key).sort((a,b)=>(a.joined||'').localeCompare(b.joined||''));
-  const visitors=live().filter(m=>m.status==='Visitor'&&monthKey(m.joined)===key);
+  const visitors=live().filter(m=>m.status==='New'&&monthKey(m.joined)===key);
   const avg=recs.length?Math.round(recs.reduce((s,r)=>s+(r.percentage||0),0)/recs.length):0;
   const peak=recs.reduce((mx,r)=>Math.max(mx,r.presentCount||0),0);
   const mm=key.split('-')[1];
@@ -5911,13 +6092,17 @@ function genMemberId(){
 }
 function openVisitor(){
   ['v-name','v-phone','v-email','v-invited'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('v-count').value='';
   document.getElementById('v-place').value='';
   document.getElementById('v-city').value='';
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   document.getElementById('v-date').value=today;
   document.getElementById('v-nextstep').value='Welcome call';
   const due=new Date(); due.setDate(due.getDate()+3);
-  document.getElementById('v-due').value=due.toISOString().slice(0,10);
+  document.getElementById('v-due').value=localDateStr(due);
+  clearVPhoneErr();
+  clearVFieldErr('v-name-err','v-name');
+  clearVFieldErr('v-place-err','v-place');
   document.getElementById('visitor-overlay').classList.add('open');
   setTimeout(()=>document.getElementById('v-name').focus(),60);
 }
@@ -5925,39 +6110,139 @@ function closeVisitor(){ document.getElementById('visitor-overlay').classList.re
 async function saveVisitor(another){
   if(!canEditMembers()) return;
   const name=document.getElementById('v-name').value.trim();
-  if(!name){ showToast('Name is required','error'); return; }
+  if(!name){ setVFieldErr('v-name-err','v-name','Name is required'); return; }
+  const memberCount = Math.max(1, parseInt(document.getElementById('v-count').value)||1);
+  const place=document.getElementById('v-place').value;
+  if(!place){ setVFieldErr('v-place-err','v-place','Please select a location'); return; }
+
+  const phone=document.getElementById('v-phone').value.trim();
+
+  // ── Duplicate phone check ──
+  if(phone && phone.length===10){
+    const dupPhone = members.find(m => !m.archived && (m.phone||'').replace(/\D/g,'').slice(-10)===phone);
+    if(dupPhone){
+      const errEl = document.getElementById('v-phone-err');
+      const alreadyWarned = errEl && errEl.dataset.dupWarn==='1';
+      if(!alreadyWarned){
+        setVPhoneErr(`⚠️ Already used by ${dupPhone.name} (${dupPhone.id}). Tap Save again to confirm.`,'warn');
+        errEl.dataset.dupWarn='1';
+        return; // stop — user must confirm with a second tap
+      }
+      // second tap — proceed
+    } else {
+      clearVPhoneErr();
+    }
+  } else if(phone.length===0){
+    setVPhoneErr('Phone is required'); return;
+  } else if(phone.length!==10){
+    setVPhoneErr('Must be exactly 10 digits'); return;
+  } else {
+    clearVPhoneErr();
+  }
+
   const invited=document.getElementById('v-invited').value.trim();
-  const visit=document.getElementById('v-date').value || new Date().toISOString().slice(0,10);
+  const visit=document.getElementById('v-date').value || localDateStr();
   const nextStep=document.getElementById('v-nextstep').value.trim()||'Welcome call';
   const due=document.getElementById('v-due').value||'';
-  const place=document.getElementById('v-place').value||'';
+  // place already captured above
   const visitorCity=document.getElementById('v-city').value.trim();
   const id=genMemberId();
   const now=new Date().toISOString();
   const data={ id, name,
-    phone:document.getElementById('v-phone').value.trim(),
+    phone,
     email:document.getElementById('v-email').value.trim(),
     invitedBy: invited, place, city: visitorCity,
-    ministry:'', status:'Visitor', dob:'', age:null, household:'', address:'',
+    memberCount, ministry:'', status:'New', dob:'', age:null, household:'', address:'',
     skills:[], joined:visit, attendance:0,
     nextStep, nextStepDue:due, stageSince:now,
-    notes:[{ts:now, text:'First-time visitor'+(visit?' on '+fmtDate(visit):'')+(invited?' · invited by '+invited:'')+(place?' · at '+place:'')}],
+    notes:[{ts:now, text:'First-time visitor'+(visit?' on '+fmtDate(visit):'')+(invited?' · invited by '+invited:'')+(place?' · at '+place:'')+(memberCount>1?' · group of '+memberCount:'')}],
     baptismDate:'', membershipDate:'', weddingAnniversary:'',
     updatedAt:now };
   try{
     await setDoc(doc(membersCol, id), data);
     logAudit('Added first-time visitor', name);
-    showToast(`Welcome ${name}! Added as a Visitor`,'success');
+    showToast(`Welcome ${name}! Added as a New Comer`,'success');
     if(another) openVisitor(); else closeVisitor();
   }catch(e){ showToast('Could not save: '+e.message,'error'); }
 }
+function setVFieldErr(errId, inputId, msg){
+  const el=document.getElementById(errId);
+  const inp=document.getElementById(inputId);
+  if(el){ el.textContent=msg; el.style.display='block'; el.style.color='#ef4444'; }
+  if(inp){ inp.style.borderColor='#ef4444'; inp.style.background='rgba(239,68,68,0.06)'; }
+}
+function clearVFieldErr(errId, inputId){
+  const el=document.getElementById(errId);
+  const inp=document.getElementById(inputId);
+  if(el){ el.style.display='none'; el.textContent=''; }
+  if(inp){ inp.style.borderColor=''; inp.style.background=''; }
+}
+window.setVFieldErr=setVFieldErr;
+window.clearVFieldErr=clearVFieldErr;
+function setVPhoneErr(msg, type){
+  const el=document.getElementById('v-phone-err');
+  const inp=document.getElementById('v-phone');
+  el.textContent=msg;
+  el.style.display='block';
+  el.style.color = type==='warn' ? '#d97706' : '#ef4444';
+  inp.style.borderColor = type==='warn' ? '#d97706' : '#ef4444';
+  inp.style.background = type==='warn' ? 'rgba(217,119,6,0.06)' : 'rgba(239,68,68,0.06)';
+}
+function clearVPhoneErr(){
+  const el=document.getElementById('v-phone-err');
+  const inp=document.getElementById('v-phone');
+  if(el){ el.style.display='none'; el.textContent=''; }
+  if(inp){ inp.style.borderColor=''; inp.style.background=''; }
+}
+window.clearVPhoneErr=clearVPhoneErr;
+window.setVPhoneErr=setVPhoneErr;
+
 
 function exportNewComers(){
-  // All Visitor-status members, sorted by join date descending
+  // Show the export filter dialog instead of exporting immediately
+  openNcExportDialog();
+}
+
+function openNcExportDialog(){
+  const all = members.filter(m => !m.archived && m.status==='New');
+  if(!all.length){ showToast('No New Comers on record yet','error'); return; }
+  // Leave From blank (= all time), To = today
+  const maxDate = localDateStr();
+  document.getElementById('nce-from').value = '';
+  document.getElementById('nce-to').value   = maxDate;
+  _ncExportUpdateCount();
+  document.getElementById('nc-export-overlay').classList.add('open');
+}
+function closeNcExportDialog(){ document.getElementById('nc-export-overlay').classList.remove('open'); }
+function _ncExportUpdateCount(){
+  const from = document.getElementById('nce-from').value;
+  const to   = document.getElementById('nce-to').value;
+  const n = members.filter(m => !m.archived && m.status==='New'
+    && (!from || (m.joined||'')>=from)
+    && (!to   || (m.joined||'')<=to)).length;
+  document.getElementById('nce-count').textContent = n + ' newcomer'+(n!==1?'s':'');
+}
+function runNcExport(){
+  const from = document.getElementById('nce-from').value;
+  const to   = document.getElementById('nce-to').value;
+
   const list = members
-    .filter(m => !m.archived && m.status === 'Visitor')
+    .filter(m => !m.archived && m.status === 'New'
+      && (!from || (m.joined||'')>=from)
+      && (!to   || (m.joined||'')<=to))
     .sort((a,b) => (b.joined||'').localeCompare(a.joined||''));
 
+  closeNcExportDialog();
+  if(!list.length){ showToast('No New Comers match that date range','error'); return; }
+  _doNcExport(list);
+}
+window.openNcExportDialog=openNcExportDialog;
+window.closeNcExportDialog=closeNcExportDialog;
+window._ncExportUpdateCount=_ncExportUpdateCount;
+window.runNcExport=runNcExport;
+
+function _doNcExport(list){
+  // All New-status members (newcomers), sorted by join date descending
   if(!list.length){ showToast('No New Comers on record yet','error'); return; }
 
   // Extract "invited by" from stored invitedBy field or fallback to notes
@@ -5981,9 +6266,9 @@ function exportNewComers(){
 
   const rows = [[
     'Member ID','Name','Phone','Email',
-    'First Visit','Location','Invited By',
+    'First Visit','Location','City','Invited By','Member Count',
     'Follow-up Step','Follow-up By','Follow-up Status',
-    'Address','City'
+    'Address'
   ]];
 
   list.forEach(m => rows.push([
@@ -5993,12 +6278,13 @@ function exportNewComers(){
     m.email||'',
     m.joined ? fmtDate(m.joined) : '',
     m.place||'',
+    m.city||'',
     getInvitedBy(m),
+    m.memberCount||1,
     m.nextStep||'',
     m.nextStepDue ? fmtDate(m.nextStepDue) : '',
     getFollowUpStatus(m),
-    m.address||'',
-    m.city||''
+    m.address||''
   ]));
 
   const csv = '\uFEFF' + rows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
@@ -6025,7 +6311,10 @@ function exportNewComers(){
       <td><b>${escapeHtml(m.name||'')}</b><br><span style="font-size:10px;color:#999;">${escapeHtml(m.id||'')}</span></td>
       <td>${escapeHtml(m.phone||'—')}</td>
       <td>${m.joined ? fmtDate(m.joined) : '—'}</td>
+      <td>${escapeHtml(m.place||'—')}</td>
+      <td>${escapeHtml(m.city||'—')}</td>
       <td>${escapeHtml(inv||'—')}</td>
+      <td style="text-align:center;font-weight:700;">${m.memberCount||1}</td>
       <td class="${isOv?'ov':'ok'}">${escapeHtml(m.nextStep||'—')}<br><span style="font-size:10px;">${m.nextStepDue?fmtDate(m.nextStepDue):''}</span></td>
     </tr>`;
   }).join('');
@@ -6037,13 +6326,14 @@ function exportNewComers(){
     </div>
     <div class="kpis">
       <div class="kpi"><div class="kpi-val">${list.length}</div><div class="kpi-lbl">Total New Comers</div></div>
+      <div class="kpi"><div class="kpi-val">${list.reduce((s,m)=>s+(m.memberCount||1),0)}</div><div class="kpi-lbl">Total Headcount</div></div>
       <div class="kpi"><div class="kpi-val" style="color:#d97706">${overdue.length}</div><div class="kpi-lbl">Follow-up Overdue</div></div>
       <div class="kpi"><div class="kpi-val" style="color:#2563eb">${pending.length}</div><div class="kpi-lbl">Follow-up Pending</div></div>
       <div class="kpi"><div class="kpi-val" style="color:#16a34a">${noStep.length}</div><div class="kpi-lbl">No Step Set</div></div>
     </div>
     <div class="sec">All New Comers (${list.length})</div>
     <table>
-      <thead><tr><th>Name</th><th>Phone</th><th>First Visit</th><th>Invited By</th><th>Follow-up</th></tr></thead>
+      <thead><tr><th>Name</th><th>Phone</th><th>First Visit</th><th>Location</th><th>City</th><th>Invited By</th><th>Count</th><th>Follow-up</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table>`;
 
@@ -6054,6 +6344,7 @@ function exportNewComers(){
   setTimeout(()=>{ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){} }, 400);
 }
 window.exportNewComers = exportNewComers;
+window._doNcExport = _doNcExport;
 
 // ---- bulk actions ----
 let selectMode=false;
@@ -6398,7 +6689,7 @@ function setFinType(type) {
 }
 
 function openFinanceModal(id) {
-  document.getElementById('fin-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fin-date').value = localDateStr();
   if (id) {
     const e = financeEntries.find(x => x._id === id);
     if (!e) return;
@@ -7076,7 +7367,7 @@ function openMeetingModal(cellId, meetId){
   ccAttPresent = new Set();
   document.getElementById('cc-meet-cell-id').value = cellId;
   document.getElementById('cc-meet-edit-id').value = '';
-  document.getElementById('cc-meet-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('cc-meet-date').value = localDateStr();
   document.getElementById('cc-meet-topic').value = '';
   document.getElementById('cc-meet-notes').value = '';
   document.getElementById('cc-meeting-modal-title').textContent = 'Record Meeting — '+cell.name;
